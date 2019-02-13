@@ -64,6 +64,7 @@ class DrawRend : public Renderer {
 
 
 
+
 private:
   // Global state variables for SVGs, pixels, and view transforms
   std::vector<SVG*> svgs; size_t current_svg;
@@ -103,17 +104,43 @@ private:
       PixelColorStorage &p = sub_pixels[i][j];
       // Part 1: Overwrite PixelColorStorage p using Color c.
       //         Pay attention to different data types.
+      p[0] = (unsigned char)255*c.r;
+      p[1] = (unsigned char)255*c.g;
+      p[2] = (unsigned char)255*c.b;
       return;
     }
 
     void fill_pixel(Color c) {
       for (int i = 0; i < samples_per_side; ++i)
-        for (int j = 0; j < samples_per_side; ++j)
+        for (int j = 0; j < samples_per_side; ++j) {
+          // cout << samples_per_side << endl;
           fill_color(i, j, c);
+        }
     }
 
     Color get_pixel_color() {
-      return Color(sub_pixels[0][0].data());
+      // return Color(sub_pixels[0][0].data());
+
+      int red = 0;
+      int green = 0;
+      int blue = 0;
+      for (int i = 0; i < samples_per_side; ++i)
+        for (int j = 0; j < samples_per_side; ++j) {
+          red += sub_pixels[i][j][0];
+          green += sub_pixels[i][j][1];
+          blue += sub_pixels[i][j][2];
+        }
+      red /= samples_per_side*samples_per_side;
+      green /= samples_per_side*samples_per_side;
+      blue /= samples_per_side*samples_per_side;
+
+      PixelColorStorage p = sub_pixels[0][0];
+      p[0] = (unsigned char)1*red;
+      p[1] = (unsigned char)1*green;
+      p[2] = (unsigned char)1*blue;
+
+      return Color(p.data());
+      // return Color(sub_pixels[0][0].data());
       // Part 2: Implement get_pixel_color() for supersampling.
     }
     

@@ -25,72 +25,213 @@
 
 <h1 align="middle">CS 184: Computer Graphics and Imaging, Spring 2019</h1>
 <h1 align="middle">Project 1: Rasterizer</h1>
-<h2 align="middle">YOUR NAME, CS184-??</h2>
+<h2 align="middle">Mingfang Zhang, CS184-aff</h2>
 
 <br><br>
 
 <div>
 
 <h2 align="middle">Overview</h2>
-<p>Give a high-level overview of what you implemented in this project. Think about what you've built as a whole. Share your thoughts on what interesting things you've learned from completing the project.</p>
+<p>This project has two sections — “Rasterization” and “Sampling”. In the first section, I rasterize triangles and use supersampling method to do antialiasing. Then I implement graph transforms. In the second section, I use barycentric coordinate to get a smooth color change in a triangle. Then I did texture mapping using mipmaps and “Nearest” and “Bilinear” method.</p>
 
 <h2 align="middle">Section I: Rasterization</h2>
 
 <h3 align="middle">Part 1: Rasterizing single-color triangles</h3>
 
-<p>Here is an example 2x2 gridlike structure using an HTML table. Each <b>tr</b> is a row and each <b>td</b> is a column in that row. You might find this useful for framing and showing your result images in an organized fashion.</p>
+<h4>1.1</h4>
+
+<p>To rasterize triangles, since I get the coordinates of a triangle and the triangle color, I need to first get the bounding box of the triangle and then check each coordinates in the bounding box whether it’s in the triangle. If so, I need to paint the pixel in that coordinate to the color I get, using <code>SampleBuffer::fill_pixel()</code>.</p>
+
+<p>Then let’s talk about the function for judging if a point is in the triangle. After trying a few methods, it turns out that the method in the lecture performs the best even though it’s not fast, which is to see going along the triangle, if the point is always at the same side, the point is sure to be in the triangle.</p>
+
+<h4>1.2</h4>
+
+<p>My algorithm is exactly checking each sample within the bounding box of the triangle, so it’s no worse than that.</p>
+
+<h4>1.3</h4>
+<div align="middle">
+  <table style="width=100%">
+    <tr>
+      <td>
+        <img src="images/1-3.png" width="600px"/>
+        <figcaption align="middle">test4</figcaption>
+      </td>
+    </tr>
+  </table>
+</div>
+
+<h3 align="middle">Part 2: Antialiasing triangles</h3>
+
+<h4>2.1</h4>
+
+<p>In <code>DrawRend::rasterize_triangle</code>, I divide a pixel into <code>sample_rate</code> ones and get the center coordinates of each sub-pixel. Then I check if they are in the triangle using the same method in part one. If so, paint the sub-pixel into the color I get. Then in each pixel, I use <code>SampleBuffer::get_pixel_color</code> to get the average rgb value among each sub-pixel and give the value to the whole pixel.</p>
+
+<p>The reason why supersampling is useful is that it takes much more samples than it supposed to, so we have more detailed information about the graph. And by efficiently using the information, we get better result.</p>
+
+<p>The modifications I made to the pipeline is that before painting a whole pixel, I divide the pixel into many sub-pixels and do the in-triangle checking and paint them individually, then I get a average color of them to paint the whole pixel.</p>
+
+<p>To antialias triangles, I take the average color of sub-pixels to paint the whole pixel, which smooth the edge of a graph.</p>
+
+<h4>2.2</h4>
 
 <div align="middle">
   <table style="width=100%">
     <tr>
       <td>
-        <img src="images/image1.png" align="middle" width="400px"/>
-        <figcaption align="middle">Caption goes here.</figcaption>
+        <img src="images/2-2-1.png" width="300px"/>
+        <figcaption align="middle">Sample rate 1</figcaption>
       </td>
       <td>
-        <img src="images/image2.png" align="middle" width="400px"/>
-        <figcaption align="middle">Caption goes here.</figcaption>
+        <img src="images/2-2-2.png" width="300px"/>
+        <figcaption align="middle">Sample rate 4</figcaption>
+      </td>
+      <td>
+        <img src="images/2-2-3.png" width="300px"/>
+        <figcaption align="middle">Sample rate 16</figcaption>
       </td>
     </tr>
-    <br>
+  </table>
+</div>
+
+<p>The reason why these results are observed is that the pink triangle is so thin that only part of a pixel is in the triangle. As a result, checking the center of a whole pixel is not a accurate policy. However, I divide the pixel into sub-pixels and take the average color, so I can get a preciser result.</p>
+
+<h3 align="middle">Part 3: Transforms</h3>
+
+<div align="middle">
+  <table style="width=100%">
     <tr>
       <td>
-        <img src="images/image3.png" align="middle" width="400px"/>
-        <figcaption align="middle">Caption goes here.</figcaption>
+        <img src="images/3-1.png" width="600px"/>
+        <figcaption align="middle">A robot wearing a blue hat is waving its hand</figcaption>
       </td>
+    </tr>
+  </table>
+</div>
+
+<h2 align="middle">Section II: Sampling</h2>
+
+<h3 align="middle">Part 4: Barycentric coordinates</h3>
+
+<h4>4.1</h4>
+
+<p>From my perspective, barycentric coordinate is the relative position of a point in a triangle. In particular, when I have a point’s coordinate which is in a triangle, along with the 3 vertexs’ coordinates of the triangle, I can use the formula in the lecture to calculate the barycentric coordinate of the point in the  triangle.</p>
+
+<p>If there is a value in each vertex of a triangle (such as color), with a barycentric coordinate, I can calculate a value which is proper for the point in the triangle relative to three vertexs of the triangle.</p>
+
+<p>The picture down below is a svg file that plots a single triangle with one red, one green, and one black vertex, which produce a smoothly blended color triangle.</p>
+
+<div align="middle">
+  <table style="width=100%">
+    <tr>
       <td>
-        <img src="images/image4.png" align="middle" width="400px"/>
-        <figcaption align="middle">Caption goes here.</figcaption>
+        <img src="images/4-1.png" width="600px"/>
+        <figcaption align="middle">A smoothly blended color triangle</figcaption>
+      </td>
+    </tr>
+  </table>
+</div>
+
+<h4>4.2</h4>
+
+<div align="middle">
+  <table style="width=100%">
+    <tr>
+      <td>
+        <img src="images/4-2.png" width="600px"/>
+        <figcaption align="middle">test7</figcaption>
       </td>
     </tr>
   </table>
 </div>
 
 
-<h3 align="middle">Part 2: Antialiasing triangles</h3>
-
-
-
-<h3 align="middle">Part 3: Transforms</h3>
-
-
-
-<h2 align="middle">Section II: Sampling</h2>
-
-<h3 align="middle">Part 4: Barycentric coordinates</h3>
-
-
 <h3 align="middle">Part 5: "Pixel sampling" for texture mapping</h3>
 
+<h4>5.1</h4>
+
+<p>Pixel sampling aims to get the pixel’s color facing the problem that color information is only stored at integer coordinates.</p>
+
+<p>To implement texture mapping, I have a canvas whose coordinates are described by (x,y), and a texture picture whose coordinates are described by (u,v), noticing that u,v are in [0,1], because they describe relative position. Firstly, I convert the (x,y) to (u,v) using barycentric coordinate. In particular, according to (x,y) and 3 vertexs’ coordinates, I get (x,y)’s barycentric coordinate (alpha, beta, gamma). Then I use it along with 3 vertexs’ coordinates in texture picture to calculate the point’s (u,v) coordinate.</p>
+
+<p>Secondly, once I have the point’s (u*width,v*height) coordinate, I can get the point’s texture color now. However, the coordinate might not be an integer, and we only have color information of texture picture at integer coordinates. There are 2 different pixel sampling methods to handle this problem.</p>
+
+<p><b>Nearest</b>: Round the (u*width,v*height) coordinate to its nearest integer coordinate, and use its color.</p>
+
+<p><b>Bilinear</b>: Get the 4 integer coordinate around the (u*width,v*height) coordinate, and the 4 color value around the point. Then we apply the method in the lecture to lerp 3 times to get a more accurate color for the point.</p>
+
+<h4>5.2</h4>
+
+<div align="middle">
+  <table style="width=100%">
+    <tr>
+      <td>
+        <img src="images/5-2-1.png" width="400px"/>
+        <figcaption align="middle">Nearest + Sample rate 1</figcaption>
+      </td>
+      <td>
+        <img src="images/5-2-2.png" width="400px"/>
+        <figcaption align="middle">Bilinear + Sample rate 1</figcaption>
+      </td>
+    </tr>
+    <tr>
+      <td>
+        <img src="images/5-2-3.png" width="400px"/>
+        <figcaption align="middle">Nearest + Sample rate 16</figcaption>
+      </td>
+      <td>
+        <img src="images/5-2-4.png" width="400px"/>
+        <figcaption align="middle">Bilinear + Sample rate 16</figcaption>
+      </td>
+    </tr>
+  </table>
+</div>
+
+<h4>5.3</h4>
+
+<p><b>Comments:</b> Bilinear method did a better job on anti-aliasing</p>
+
+<p>The high frequency part of a picture can cause big difference using these two methods, because the high frequency part of a picture may have different color between near coordinates, which would cause “nearest” method to have some mistake and cause aliasing effect.</p>
 
 <h3 align="middle">Part 6: "Level sampling" with mipmaps for texture mapping</h3>
 
+<h4>6.1</h4>
+<p>Mipmap method offer different size texture picture stored for different level. The higher the level, the smaller the texture picture. Different size texture pic is stored for different need. For example, in a picture, the closer an object is, the bigger texture is required.</p>
 
+<p>Here I calculate (du/dx,dv/dx) and (du/dy,dv/dy) and use the method mentioned in the lecture to get a proper level. In particular, you can see my implementation of <code>Texture::get_level</code></p>
 
-<h2 align="middle">Section III: Art Competition</h2>
-<p>If you are not participating in the optional art competition, don't worry about this section!</p>
+<p>Since we might not get an integer value, we need to round it to one, by using “Nearest” method or “Bilinear” method. In particular, “Nearest” method is to get a nearest integer level of course, and “Bilinear” method is to get the color from both the smaller level and the bigger level, then we lerp it to a proper color.</p>
 
-<h3 align="middle">Part 7: Draw something interesting!</h3>
+<h4>6.2</h4>
+
+<p>In general, Bilinear Method offers a better antialiasing proformance, but does badly at speed and memory using.
+On the contrary, Nearest Method offers a worse antialiasing proformance, but does well at speed and memory using.</p>
+
+<h4>6.3</h4>
+
+<div align="middle">
+  <table style="width=100%">
+    <tr>
+      <td>
+        <img src="images/6-3-1.png" width="400px"/>
+        <figcaption align="middle">Nearest Level + Nearest Sampling</figcaption>
+      </td>
+      <td>
+        <img src="images/6-3-2.png" width="400px"/>
+        <figcaption align="middle">Bilinear Level + Nearest Sampling</figcaption>
+      </td>
+    </tr>
+    <tr>
+      <td>
+        <img src="images/6-3-3.png" width="400px"/>
+        <figcaption align="middle">Nearest Level + Bilinear Sampling</figcaption>
+      </td>
+      <td>
+        <img src="images/6-3-4.png" width="400px"/>
+        <figcaption align="middle">Bilinear Level + Bilinear Sampling</figcaption>
+      </td>
+    </tr>
+  </table>
+</div>
 
 </body>
 </html>

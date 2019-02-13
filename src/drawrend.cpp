@@ -13,7 +13,6 @@ namespace CGL {
 
 struct SVG;
 
-
 DrawRend::~DrawRend( void ) {}
 
 /**
@@ -35,7 +34,6 @@ void DrawRend::init() {
   current_svg = 0;
   psm = P_NEAREST;
   lsm = L_ZERO;
-
 }
 
 /**
@@ -439,11 +437,12 @@ void DrawRend::view_init() {
  * corresponds to the [0,1]^2 rectangle.
  */
 void DrawRend::set_view(float x, float y, float span) {
+  
   svg_to_ndc[current_svg] = Matrix3x3(1,0,-x+span,  0,1,-y+span,  0,0,2*span);
 }
 
 /**
- * Recovers the previous viewing center and span from the viewing matrix,
+ * Recovers the previous viewing center and span frqqom the viewing matrix,
  * then shifts and zooms the viewing window by setting a new view matrix.
  */
 void DrawRend::move_view(float dx, float dy, float zoom) {
@@ -462,16 +461,14 @@ void DrawRend::rasterize_point( float x, float y, Color color ) {
   // check bounds
   if ( sx < 0 || sx >= width ) return;
   if ( sy < 0 || sy >= height ) return;
-
+  // cout << sx << " " << sy << endl; 
   samplebuffer[sy][sx].fill_pixel(color);
   return;
 
 }
 
 // Rasterize a line.
-void DrawRend::rasterize_line( float x0, float y0,
-                     float x1, float y1,
-                     Color color) {
+void DrawRend::rasterize_line( float x0, float y0, float x1, float y1, Color color) {
   if (x0 > x1) {
     swap(x0,x1); swap(y0,y1);
   }
@@ -491,6 +488,91 @@ void DrawRend::rasterize_line( float x0, float y0,
   }
 }
 
+
+class Vector3 {
+ public:
+    Vector3(float fx, float fy, float fz)
+        :x(fx), y(fy), z(fz) {
+    }
+
+    // Subtract
+    Vector3 operator - (const Vector3& v) const {
+        return Vector3(x - v.x, y - v.y, z - v.z) ;
+    }
+
+    // Dot product
+    float Dot(const Vector3& v) const {
+        return x * v.x + y * v.y + z * v.z ;
+    }
+
+    // Cross product
+    Vector3 Cross(const Vector3& v) const {
+        return Vector3(
+            y * v.z - z * v.y,
+            z * v.x - x * v.z,
+            x * v.y - y * v.x ) ;
+    }
+
+ public:
+    float x, y, z ;
+};
+
+bool PinT2(double i, double j, float x0, float y0, float x1, float y1, float x2, float y2) {
+  Vector3 A(x0, y0, 0);
+  Vector3 B(x1, y1, 0);
+  Vector3 C(x2, y2, 0);
+  Vector3 P(i+0.5, j+0.5, 0);
+
+  Vector3 v0 = C - A ;
+  Vector3 v1 = B - A ;
+  Vector3 v2 = P - A ;
+
+  float dot00 = v0.Dot(v0) ;
+  float dot01 = v0.Dot(v1) ;
+  float dot02 = v0.Dot(v2) ;
+  float dot11 = v1.Dot(v1) ;
+  float dot12 = v1.Dot(v2) ;
+
+  float inverDeno = 1 / (dot00 * dot11 - dot01 * dot01) ;
+
+  float u = (dot11 * dot02 - dot01 * dot12) * inverDeno ;
+  if (u < 0 || u > 1) // if u out of range, return directly
+  {
+      return false ;
+  }
+
+  float v = (dot00 * dot12 - dot01 * dot02) * inverDeno ;
+  if (v < 0 || v > 1) // if v out of range, return directly
+  {
+      return false ;
+  }
+
+  return u + v <= 1 ;
+}
+
+// the 3rd dimension dirction
+float the3rdDD(float x, float y, float x0, float y0, float x1, float y1) {
+
+    return -(x - x0) * (y1 - y0) + (y - y0) * (x1 - x0);
+}
+
+bool PinT(float x, float y, float x0, float y0, float x1, float y1, float x2, float y2) {
+    bool c0 = (the3rdDD(x, y, x0, y0, x1, y1) >= 0);
+    bool c1 = (the3rdDD(x, y, x1, y1, x2, y2) >= 0);
+    bool c2 = (the3rdDD(x, y, x2, y2, x0, y0) >= 0);
+
+    bool in  = (c0 && c1 && c2);
+    bool out = (!c0 && !c1 && !c2);
+    return (in || out);
+}
+
+Vector3D getBaryC(float x, float y, float x0, float y0, float x1, float y1, float x2, float y2) {
+  float al = (-(x-x1)*(y2-y1)+(y-y1)*(x2-x1))/(-(x0-x1)*(y2-y1)+(y0-y1)*(x2-x1));
+  float be = (-(x-x2)*(y0-y2)+(y-y2)*(x0-x2))/(-(x1-x2)*(y0-y2)+(y1-y2)*(x0-x2));
+  float ga = 1 - al - be;
+  return Vector3D(al,be,ga);
+}
+
 // Rasterize a triangle.
 void DrawRend::rasterize_triangle( float x0, float y0,
                          float x1, float y1,
@@ -500,7 +582,7 @@ void DrawRend::rasterize_triangle( float x0, float y0,
   //         Hint: Implement fill_color() function first so that you can see
   //         rasterized points and lines, then start rasterizing triangles.
   //         Use something like this:
-  //             samplebuffer[row][column].fill_pixel(color);
+  //  samplebuffer[x2][y2].fill_pixel(color);
   // Part 2: Add supersampling.
   //         You need to write color to each sub-pixel by yourself,
   //         instead of using the fill_pixel() function.
@@ -510,10 +592,54 @@ void DrawRend::rasterize_triangle( float x0, float y0,
   // Part 4: Add barycentric coordinates and use tri->color for shading when available.
   // Part 5: Fill in the SampleParams struct and pass it to the tri->color function.
   // Part 6: Pass in correct barycentric differentials to tri->color for mipmapping.
+  
+  // 计时开始
+  // clock_t start, finish;
+  // double  duration;
+  // start = clock();
+
+  // 找边界
+  double ymax;  if (y2>y1) ymax = y2>y0?y2:y0; else ymax = y1>y0?y1:y0;
+  double ymin;  if (y2>y1) ymin = y1>y0?y0:y1; else ymin = y2>y0?y0:y2;
+  double xmax;  if (x2>x1) xmax = x2>x0?x2:x0; else xmax = x1>x0?x1:x0;
+  double xmin;  if (x2>x1) xmin = x1>x0?x0:x1; else xmin = x2>x0?x0:x2;
+
+  cout << "Sample per side: " << sqrt(sample_rate) << endl;
 
 
+  // 注意 ij 坐标负责填离散的画板，xy坐标负责表示连续的实际坐标系中的图形，二者有交换对称关系
+  // 先对y循环为了使 samplebuffer 访存快一些
+  for (int j = ymin; j < ymax; ++j) {
+    for (int i = xmin; i < xmax; ++i) {
+      for (int k = 0; k < sqrt(sample_rate); ++k) {
+        for (int l = 0; l < sqrt(sample_rate); ++l) {
+
+          float x = i + 1.0/sqrt(sample_rate)/2.0 + k*1.0/sqrt(sample_rate);
+          float y = j + 1.0/sqrt(sample_rate)/2.0 + l*1.0/sqrt(sample_rate);
+
+          if (PinT(x,y,x0,y0,x1,y1,x2,y2)) {
+            Color app_color = color;
+            if (tri != NULL) {
+              Vector3D p_bary = getBaryC(x,y,x0,y0,x1,y1,x2,y2);
+              Vector3D dx = getBaryC(x+1.0,y,x0,y0,x1,y1,x2,y2);
+              Vector3D dy = getBaryC(x,y+1.0,x0,y0,x1,y1,x2,y2);
+              SampleParams sp;
+              sp.psm = psm; // P_NEAREST = 0, P_LINEAR = 1
+              sp.lsm = lsm; // L_ZERO = 0, L_NEAREST = 1, L_LINEAR = 2
+
+              app_color = tri->color(p_bary, dx, dy, sp);
+            }
+            samplebuffer[j][i].fill_color(k,l,app_color);
+          }
+        }
+      }
+    }
+  }
+
+  // finish = clock();
+  // duration = (double)(finish - start) / CLOCKS_PER_SEC;
+  // cout << duration << " seconds\n";
 }
-
 
 
 }

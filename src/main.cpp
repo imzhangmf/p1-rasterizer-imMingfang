@@ -4,6 +4,8 @@
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <dirent.h>
+#include <typeinfo>
+#include <ctime>
 
 #define TINYEXR_IMPLEMENTATION
 #include "CGL/tinyexr.h"
@@ -104,16 +106,16 @@ vector<SVG*> loadPath( const char* path ) {
 int main( int argc, char** argv ) {
 
   if (argc < 2) {
-    msg("Not enough arguments. Pass in an .svg or a directory of .svg files.");
-    return 0;
+   msg("Not enough arguments. Pass in an .svg or a directory of .svg files.");
+   return 0;
   }
 
-  vector<SVG*> svgs(loadPath(argv[1]));
+ vector<SVG*> svgs(loadPath(argv[1]));
+  // vector<SVG*> svgs(loadPath("../svg/basic/test3.svg"));
   if (svgs.empty()) {
     msg("No svg files successfully loaded. Exiting.");
     return 0;
   }
-
   // create application
   DrawRend app(svgs);
 
